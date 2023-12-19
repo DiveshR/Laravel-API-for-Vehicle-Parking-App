@@ -15,7 +15,7 @@ class VehicleController extends Controller
      */
     public function index()
     {
-        return VehicleResource::collection(Vehicle::latest());
+        return VehicleResource::collection(Vehicle::latest()->get());
     }
 
     /**
