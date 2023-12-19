@@ -162,15 +162,17 @@ Single Action Controllers
 If a controller action is particularly complex, you might find it convenient to dedicate an entire controller class to that single action.
 
 ```php
+
 php artisan make:controller Api/V1/Auth/RegisterController --invokable
-````
+
+```````
 - Api subfolder to specify that it's an API Controller
 - V1 subfolder to specify that it's Version 1 of the API 
 - Auth subfolder to specify that it's a Controller related to Auth
 
 app/Http/Controllers/Api/V1/Auth/RegisterController.php
 
-````php
+```php
 
 namespace App\Http\Controllers\Api\V1\Auth;
 
@@ -187,7 +189,8 @@ class RegisterController extends Controller
         //
     }
 }
-```
+
+`````````
 
 Next, let's create a Route for this Controller.
 routes/api.php:
