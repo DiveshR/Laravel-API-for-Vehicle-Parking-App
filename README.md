@@ -866,4 +866,3 @@ Laravel API Vehicles
 But if we try to get the Vehicle list with the Bearer Token defining our user, we get only our own Vehicle:
 
 Not only that, if we try to get someone else's Vehicle by guessing its ID, we will get a 404 Not Found response:
-# Laravel-API-for-Vehicle-Parking-App
