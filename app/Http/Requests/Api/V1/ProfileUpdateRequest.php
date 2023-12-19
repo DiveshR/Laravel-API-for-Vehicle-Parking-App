@@ -22,9 +22,9 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        $validatedData = $request->validate([
+        return [
             'name' => ['required', 'string'],
             'email' => ['required', 'email', Rule::unique('users')->ignore(auth()->user())],
-        ]);
+        ];
     }
 }
