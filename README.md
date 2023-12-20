@@ -593,7 +593,7 @@ We can access the currently logged-in user with $request->user() or auth()->user
 
 --------------------------------------------------------------------------------------------------------------------
 
- ## Lesson-4 - Manage User's Vehicles
+ ## Lesson-5 - Manage User's Vehicles
 
 
 app/Models/Vehicle.php:
@@ -869,3 +869,82 @@ Laravel API Vehicles
 But if we try to get the Vehicle list with the Bearer Token defining our user, we get only our own Vehicle:
 
 Not only that, if we try to get someone else's Vehicle by guessing its ID, we will get a 404 Not Found response:
+
+ --------------------------------------------------------------------------------------------------------------------
+
+ ## Lesson-6 - Get Parking Zones
+
+ Now we need to have a list of the parking zones/areas, to show them in the application and to allow the user to choose where to start parking.
+
+This will be only one public API endpoint: GET /api/v1/zones
+
+So, let's generate a Controller:
+
+```php
+php artisan make:controller Api/V1/ZoneController
+
+``````
+
+Also, we generate the API Resource:
+````php
+php artisan make:resource ZoneResource
+```````
+
+app/Http/Resources/ZoneResouce.php:
+
+```php
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class ZoneResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'price_per_hour' => $this->price_per_hour,
+        ];
+    }
+}
+
+`````
+
+app/Http/Controllers/Api/V1/ZoneController.php:
+
+```php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\Zone;
+use App\Http\Resources\ZoneResource;
+
+class ZoneController extends Controller
+{
+    public function index()
+    {
+        return ZoneResource::collection(Zone::latest()->get());
+    }
+}
+
+``````
+
+routes/api.php:
+
+```php
+Route::middleware('auth:sanctum')->group( function(){
+ ////////
+});
+
+Route::get('zones', [ZoneController::class, 'index']);
+
+````
