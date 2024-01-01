@@ -1742,3 +1742,115 @@ php artisan serve
 http://127.0.0.1:8000/docs
 
 ````
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------
+
+ ## Lesson-10 - Automated Tests with PHPUnit
+
+Prepare the testing database for our tests.
+
+I will use SQLite in-memory database, so in the phpunit.xml that comes by default with Laravel, we need to just un-comment what's already there: the variables of DB_CONNECTION and DB_DATABASE.
+
+```php
+        <env name="DB_CONNECTION" value="sqlite"/> 
+        <env name="DB_DATABASE" value=":memory:"/>
+````
+
+Now, whatever DB operations will be executed in our tests, they will not touch our main database, but rather will execute in memory, in a temporary database.
+
+ We create a feature test for auth:
+
+ ```php
+ php artisan make:test AuthenticationTest
+ ````
+
+tests/Feature/AuthenticationTest.php:
+
+
+ ```php
+ namespace Tests\Feature;
+ 
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+ 
+class AuthenticationTest extends TestCase
+{
+    use RefreshDatabase;
+ 
+    public function testUserCanLoginWithCorrectCredentials()
+    {
+        $user = User::factory()->create();
+ 
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email'    => $user->email,
+            'password' => 'password',
+        ]);
+ 
+        $response->assertStatus(201);
+    }
+ 
+    public function testUserCannotLoginWithIncorrectCredentials()
+    {
+        $user = User::factory()->create();
+ 
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email'    => $user->email,
+            'password' => 'wrong_password',
+        ]);
+ 
+        $response->assertStatus(422);
+    }
+}
+ ````
+
+ First, we need use RefreshDatabase; so the database would be re-migrated fresh before each test.
+ 
+ ```php
+ php artisan test
+ ````
+
+ Now, let's test the registration endpoint, within the same file.
+
+ ```php
+ 
+     public function testUserCanRegisterWithCorrectCredentials()
+    {
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Divesh Kumar',
+            'email' => 'divesh@gmail.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+        $response->assertStatus(201)
+            ->assertJsonStructure([
+                'access_token',
+            ]);
+
+            $this->assertDatabaseHas('users', [
+                'name' => 'Divesh Kumar',
+                'email'  => 'divesh@gmail.com',
+            ]);
+    }
+
+    public function testUserCannotRegisterWithIncorrectCredentials()
+    {
+        $response = $this->postJson('/api/v1/auth/register',[
+            'name' => 'Divesh Kumar',
+            'email' => 'divesh@gmail.com',
+            'password' => 'password',
+            'password_confirmation' => 'wrong_password',
+
+        ]);
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseMissing('users' , [
+            'name' => 'Divesh Kumar',
+            'email' => 'divesh@gmail.com'
+        ]);
+    }
+ ``````
