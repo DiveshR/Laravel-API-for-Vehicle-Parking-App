@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\Auth\PasswordUpdateController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
+use App\Http\Controllers\Api\V1\ParkingController;
 use App\Http\Controllers\Api\V1\VehicleController;
 use App\Http\Controllers\Api\V1\ZoneController;
 use Illuminate\Http\Request;
@@ -27,6 +28,9 @@ Route::middleware('auth:sanctum')->group( function(){
     Route::post('auth/logout', LogoutController::class);
 
     Route::apiResource('vehicles', VehicleController::class);
+
+    Route::post('parkings/start', [ParkingController::class, 'start']);
+    Route::get('parkings/{parking}',[ParkingController::class,'show']);
 
 });
 

@@ -948,3 +948,305 @@ Route::middleware('auth:sanctum')->group( function(){
 Route::get('zones', [ZoneController::class, 'index']);
 
 ````
+
+--------------------------------------------------------------------------------------------------------------------
+
+ ## Lesson-7 - Start/Stop Parking
+
+```php
+
+php artisan make:controller Api/V1/ParkingController
+
+````
+
+Also, I will use API Resource here, because we would need to return the Parking data in a few places.
+
+````php
+
+php artisan make:resource ParkingResource
+
+```````
+
+```php
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class ParkingResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'zone' => [
+                'name' => $this->zone->name,
+                'price_per_hour' => $this->zone->price_per_hour,
+            ],
+            'vehicle' => [
+                'plate_number' => $this->vehicle->plate_number
+            ],
+            'start_time' => $this->start_time->toDateTimeString(),
+            'stop_time' => $this->stop_time?->toDateTimeString(),
+            'total_price' => $this->total_price,
+        ];
+    }
+}
+
+```````
+
+Important notice: we're converting the start_time and stop_time fields to date-time strings, and we can do that because of the $casts we defined in the model earlier. Also, the stop_time field has a question mark, because it may be null, so we use the syntax stop_time?->method() to avoid errors about using a method on a null object value.
+
+Now, we need to get back to our Model and define the zone() and vehicle() relations. Also, for convenience, we will add two local scopes that we will use later.
+
+
+app/Models/Parking.php:
+
+```php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Parking extends Model
+{
+   ///////......
+
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo(Zone::class);
+    }
+
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNull('stop_time');
+    }
+
+    public function scopeStopped($query)
+    {
+        return $query->whereNotNull('stop_time');
+    }
+    
+}
+
+
+```
+
+Now, let's try to start the parking.
+
+app/Http/Controllers/Api/V1/ParkingController.php:
+
+```php
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ParkingRequest;
+use App\Models\Parking;
+use Illuminate\Http\Response;
+use App\Http\Resources\ParkingResource;
+
+class ParkingController extends Controller
+{
+    public function start(ParkingRequest $request)
+    {
+
+        if (Parking::active()->where('vehicle_id', $request->vehicle_id)->exists()) {
+            return response()->json([
+                'errors' => ['general' => ['Can\'t start parking twice using same vehicle. Please stop currently active parking.']],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $parking = Parking::create($request->validated());
+        $parking->load('vehicle', 'zone');
+
+        return ParkingResource::make($parking);
+    }
+}
+
+````
+
+So, we validate the data, check if there are no started parking with the same vehicle, create the Parking object, load its relationships to avoid the N+1 query problem and return the data transformed by API resource.
+
+Next, we create the API endpoint in the routes.
+
+```php
+
+use App\Http\Controllers\Api\V1\ParkingController;
+ 
+// ...
+ 
+Route::middleware('auth:sanctum')->group(function () {
+    // ... profile and vehicles
+ 
+    Route::post('parkings/start', [ParkingController::class, 'start']);
+});
+
+`````
+
+We will also use the user_id multi-tenancy here, like in the Vehicles?
+
+Not only that, but in this case, we also auto-set the start_time value.
+
+Generate the Observer:
+
+```php
+php artisan make:observer ParkingObserver --model=Parking
+````
+
+```php
+namespace App\Observers;
+
+use App\Models\Parking;
+
+class ParkingObserver
+{
+    /**
+     * Handle the Parking "creating" event.
+     */
+    public function creating(Parking $parking): void
+    {
+        if(auth()->check()){
+            $parking->user_id = auth()->id();
+        }
+        
+        $parking->start_time = now();
+    }
+
+
+``````
+
+Notice: technically, we could not even create a parkings.user_id column in the database, so we would get the user from their vehicle, but in this way, it would be quicker to get the user's parking without loading the relationship each time.
+
+Then we register the Observer
+
+```php
+namespace App\Providers;
+
+use App\Models\Parking;
+use App\Models\Vehicle;
+use App\Observers\ParkingObserver;
+use App\Observers\VehicleObserver;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        Vehicle::observe(VehicleObserver::class);
+        Parking::observe(ParkingObserver::class);
+    }
+}
+
+
+`````
+
+Finally, we add a Global Scope to the model.
+
+app/Models/Parking.php:
+
+````php
+use Illuminate\Database\Eloquent\Builder;
+ 
+class Parking extends Model
+{
+    // ...
+ 
+    protected static function booted()
+    {
+        static::addGlobalScope('user', function (Builder $builder) {
+            $builder->where('user_id', auth()->id());
+        });
+    }
+ 
+}
+```````````
+Now, call the endpoint.
+
+
+Next, we need to stop the current parking, right? But first, we need to get the data for it, show it on the screen, and then allow the user to click "Stop".
+
+So we need another endpoint to show() the data.
+
+A new Controller method, reusing the same API resource:
+
+app/Http/Controllers/Api/V1/ParkingController.php:
+
+```php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ParkingRequest;
+use App\Models\Parking;
+use Illuminate\Http\Response;
+use App\Http\Resources\ParkingResource;
+
+class ParkingController extends Controller
+{
+    public function start(ParkingRequest $request)
+    {
+        .../////
+
+    }
+
+    public function show(Parking $parking)
+    {
+        return ParkingResource::make($parking);
+    }
+}
+
+```
+
+And a new route, using route model binding:
+
+routes/api.php:
+
+```php
+    Route::get('parkings/{parking}',[ParkingController::class,'show']);
+`````
+
+And now, as we have the ID record of the parking that we need to stop, we can create a special Controller method for it:
+
+````php
+public function stop(Parking $parking)
+{
+    $parking->update([
+        'stop_time' => now(),
+    ]);
+ 
+    return ParkingResource::make($parking);
+}
+
+Route::middleware('auth:sanctum')->group(function () {
+    // ...
+ 
+    Route::post('parkings/start', [ParkingController::class, 'start']);
+    Route::get('parkings/{parking}', [ParkingController::class, 'show']);
+    Route::put('parkings/{parking}', [ParkingController::class, 'stop']);
+});
+
+`````
+
+When calling this API endpoint, we don't need to pass any parameters in the body, the record is just updated, successfully.
