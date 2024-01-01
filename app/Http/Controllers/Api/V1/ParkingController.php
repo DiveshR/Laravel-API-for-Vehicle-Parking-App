@@ -9,6 +9,9 @@ use App\Http\Resources\ParkingResource;
 use App\Http\Requests\Api\V1\ParkingRequest;
 use App\Services\ParkingPriceService;
 
+/**
+ * @group Parking
+ */
 class ParkingController extends Controller
 {
     public function start(ParkingRequest $request)

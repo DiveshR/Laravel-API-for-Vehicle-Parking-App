@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Response;
 
+/**
+ * @group Auth
+ */
+
 class LoginController extends Controller
 {
     /**

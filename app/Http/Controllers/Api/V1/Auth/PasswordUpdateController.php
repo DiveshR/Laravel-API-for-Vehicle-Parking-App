@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Response;
 use App\Http\Requests\Api\V1\PasswordUpdateRequest;
 
+/**
+ * @group Auth
+ */
 class PasswordUpdateController extends Controller
 {
     /**

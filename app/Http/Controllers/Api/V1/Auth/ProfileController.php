@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Http\Requests\Api\V1\ProfileUpdateRequest;
 
+/**
+ * @group Auth
+ */
 class ProfileController extends Controller
 {
         public function show(Request $request)

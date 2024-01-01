@@ -8,6 +8,9 @@ use App\Models\Vehicle;
 use Illuminate\Http\Response;
 use App\Http\Resources\VehicleResource;
 
+/**
+ * @group Vehicles
+ */
 class VehicleController extends Controller
 {
     /**

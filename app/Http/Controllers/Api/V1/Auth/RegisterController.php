@@ -8,6 +8,9 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Response;
 
+/**
+ * @group Auth
+ */
 class RegisterController extends Controller
 {
     /**
