@@ -7,6 +7,7 @@ use App\Models\Parking;
 use Illuminate\Http\Response;
 use App\Http\Resources\ParkingResource;
 use App\Http\Requests\Api\V1\ParkingRequest;
+use App\Services\ParkingPriceService;
 
 class ParkingController extends Controller
 {
@@ -29,4 +30,15 @@ class ParkingController extends Controller
     {
         return ParkingResource::make($parking);
     }
+
+    public function stop(Parking $parking)
+    {
+        $parking->update([
+            'stop_time' => now(),
+            'total_price' => ParkingPriceService::calculatePrice($parking->zone_id, $parking->start_time),
+        ]);
+
+        return ParkingResource::make($parking);
+    }
+
 }

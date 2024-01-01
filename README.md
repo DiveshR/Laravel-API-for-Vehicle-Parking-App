@@ -1250,3 +1250,116 @@ Route::middleware('auth:sanctum')->group(function () {
 `````
 
 When calling this API endpoint, we don't need to pass any parameters in the body, the record is just updated, successfully.
+
+
+--------------------------------------------------------------------------------------------------------------------
+
+ ## Lesson-8 - Price Calculation
+
+ Users need to know how much they would pay for parking. It should happen in three phases:
+- Before parking - when getting the list of zones.
+- During parking - when getting the parking by ID.
+- After parking - as a result of the stopping function.
+
+We need to create some function to calculate the current price by zone and duration, and then save that price in the parkings.total_price when the parking is stopped.
+
+For that, let's create a separate Service class with a method to calculate the price. In Laravel, there's no Artisan command make:service
+
+app/Services/ParkingPriceService.php:
+
+```php
+use App\Models\Zone;
+use Carbon\Carbon;
+ 
+class ParkingPriceService {
+ 
+    public static function calculatePrice(int $zone_id, string $startTime, string $stopTime = null): int
+    {
+        $start = new Carbon($startTime);
+        $stop = (!is_null($stopTime)) ? new Carbon($stopTime) : now();
+ 
+        $totalTimeByMinutes = $stop->diffInMinutes($start);
+ 
+        $priceByMinutes = Zone::find($zone_id)->price_per_hour / 60;
+ 
+        return ceil($totalTimeByMinutes * $priceByMinutes);
+    }
+ 
+}
+
+`````
+As you can see, we convert $startTime and $stopTime to Carbon objects, calculate the difference, and multiply that by price per minute, for better accuracy than calculating per hour.
+
+
+Notice: alternatively, you can choose to convert the DB fields to Carbon objects automatically, by using Eloquent casting.
+
+Now, where do we use that service?
+
+First, in the stop() method of the Controller.
+
+```php
+use App\Models\Parking;
+use App\Services\ParkingPriceService;
+ 
+class ParkingController extends Controller
+{
+    public function stop(Parking $parking)
+    {
+        $parking->update([
+            'stop_time' => now(),
+            'total_price' => ParkingPriceService::calculatePrice($parking->zone_id, $parking->start_time),
+        ]);
+ 
+        return ParkingResource::make($parking);
+    }
+}
+
+`````
+
+Note that this Service with a static method is only one way to do it. You could put this method in the Model itself, or a Service with a non-static regular method.
+
+So, when the parking is stopped, calculations are performed automatically, and in the DB, we have the saved value:
+
+Laravel API Prices
+
+But what if the user wants to find the current price before the parking is stopped? Well, we can call the calculation directly on the API Resource file:
+
+app/Http/Resources/ParkingResource.php:
+
+```php
+
+use App\Services\ParkingPriceService;
+ 
+class ParkingResource extends JsonResource
+{
+    public function toArray($request)
+    {
+        $totalPrice = $this->total_price ?? ParkingPriceService::calculatePrice(
+            $this->zone_id,
+            $this->start_time,
+            $this->stop_time
+        );
+ 
+        return [
+            'id' => $this->id,
+            'zone' => [
+                'name' => $this->zone->name,
+                'price_per_hour' => $this->zone->price_per_hour,
+            ],
+            'vehicle' => [
+                'plate_number' => $this->vehicle->plate_number
+            ],
+            'start_time' => $this->start_time,
+            'stop_time' => $this->stop_time,
+            'total_price' => $totalPrice,
+        ];
+    }
+}
+
+````
+
+So, if we don't have a stop_time yet, the current price will be calculated in real-time mode:
+
+Laravel API Prices
+
+So, that's about it: we've created all the basic API functionality for the parking application.

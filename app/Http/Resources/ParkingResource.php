@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\ParkingPriceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,12 @@ class ParkingResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $totalPrice = $this->total_price ?? ParkingPriceService::calculatePrice(
+
+            $this->zone_id,
+            $this->start_time,
+            $this->stop_time,
+        );
         return [
             'id' => $this->id,
             'zone' => [
